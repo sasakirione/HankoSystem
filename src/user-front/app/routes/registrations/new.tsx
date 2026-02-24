@@ -1,11 +1,11 @@
-import { useState, useRef } from "react";
-import { Link, useActionData, useNavigation, useSubmit, redirect } from "react-router";
-import type { Route } from "./+types/new";
-import { apiClient } from "../../lib/api";
+import { useRef, useState } from "react";
+import { Link, redirect, useActionData, useNavigation, useSubmit } from "react-router";
 import { SealPreview } from "../../components/SealPreview";
+import { apiClient } from "../../lib/api";
 import type { Gender } from "../../lib/types";
+import type { Route } from "./+types/new";
 
-export function meta({}: Route.MetaArgs) {
+export function meta(_args: Route.MetaArgs) {
   return [{ title: "新規印鑑登録 - 印鑑登録証明システム" }];
 }
 
@@ -37,9 +37,7 @@ export async function action({ request }: Route.ActionArgs) {
         householdNumber: (formData.get("householdNumber") as string)?.trim() ?? "",
         sealName,
       },
-      sealImageFile instanceof File && sealImageFile.size > 0
-        ? sealImageFile
-        : undefined
+      sealImageFile instanceof File && sealImageFile.size > 0 ? sealImageFile : undefined
     );
     return redirect(`/registrations/${newReg.id}`);
   } catch (e) {
@@ -100,8 +98,7 @@ export default function NewRegistration() {
   const familyName = form.name.split(/[\s　]/)[0] ?? form.name;
 
   const handleChange =
-    (field: keyof FormState) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    (field: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       setForm((prev) => ({ ...prev, [field]: e.target.value }));
       if (errors[field]) {
         setErrors((prev) => ({ ...prev, [field]: undefined }));
@@ -124,14 +121,12 @@ export default function NewRegistration() {
     const newErrors: Partial<Record<keyof FormState, string>> = {};
     if (!form.name.trim()) newErrors.name = "氏名は必須です";
     if (!form.nameKana.trim()) newErrors.nameKana = "フリガナは必須です";
-    if (!form.dateOfBirthYear)
-      newErrors.dateOfBirthYear = "生年月日を入力してください";
+    if (!form.dateOfBirthYear) newErrors.dateOfBirthYear = "生年月日を入力してください";
     if (!form.dateOfBirthMonth) newErrors.dateOfBirthMonth = "月を入力してください";
     if (!form.dateOfBirthDay) newErrors.dateOfBirthDay = "日を入力してください";
     if (!form.address.trim()) newErrors.address = "住所は必須です";
     if (!form.mailingNumber.trim()) newErrors.mailingNumber = "宛名番号は必須です";
-    if (!form.householdNumber.trim())
-      newErrors.householdNumber = "世帯番号は必須です";
+    if (!form.householdNumber.trim()) newErrors.householdNumber = "世帯番号は必須です";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -203,9 +198,7 @@ export default function NewRegistration() {
                   画像を削除
                 </button>
               )}
-              <p className="text-xs text-gray-400 mt-1">
-                JPEG / PNG / GIF / WebP、5MB以下
-              </p>
+              <p className="text-xs text-gray-400 mt-1">JPEG / PNG / GIF / WebP、5MB以下</p>
             </div>
           </div>
 
@@ -234,9 +227,7 @@ export default function NewRegistration() {
                   placeholder="例: 山田 太郎"
                   className={`w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 ${errors.name ? "border-red-500" : "border-gray-300"}`}
                 />
-                {errors.name && (
-                  <p className="text-red-500 text-xs mt-1">{errors.name}</p>
-                )}
+                {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
               </div>
 
               {/* フリガナ */}
@@ -252,9 +243,7 @@ export default function NewRegistration() {
                   placeholder="例: ヤマダ タロウ"
                   className={`w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 ${errors.nameKana ? "border-red-500" : "border-gray-300"}`}
                 />
-                {errors.nameKana && (
-                  <p className="text-red-500 text-xs mt-1">{errors.nameKana}</p>
-                )}
+                {errors.nameKana && <p className="text-red-500 text-xs mt-1">{errors.nameKana}</p>}
               </div>
 
               {/* 生年月日 */}
@@ -313,15 +302,10 @@ export default function NewRegistration() {
 
               {/* 性別 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  性別
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">性別</label>
                 <div className="flex gap-4">
                   {(["男", "女"] as Gender[]).map((g) => (
-                    <label
-                      key={g}
-                      className="flex items-center gap-2 text-sm cursor-pointer"
-                    >
+                    <label key={g} className="flex items-center gap-2 text-sm cursor-pointer">
                       <input
                         type="radio"
                         name="gender"
@@ -338,9 +322,7 @@ export default function NewRegistration() {
 
               {/* 郵便番号 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  郵便番号
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">郵便番号</label>
                 <input
                   type="text"
                   name="postalCode"
@@ -364,9 +346,7 @@ export default function NewRegistration() {
                   placeholder="例: 東京都千代田区霞が関一丁目1番1号"
                   className={`w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 ${errors.address ? "border-red-500" : "border-gray-300"}`}
                 />
-                {errors.address && (
-                  <p className="text-red-500 text-xs mt-1">{errors.address}</p>
-                )}
+                {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
               </div>
 
               {/* 方書 */}
@@ -415,9 +395,7 @@ export default function NewRegistration() {
                     className={`w-full border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-500 ${errors.householdNumber ? "border-red-500" : "border-gray-300"}`}
                   />
                   {errors.householdNumber && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.householdNumber}
-                    </p>
+                    <p className="text-red-500 text-xs mt-1">{errors.householdNumber}</p>
                   )}
                 </div>
               </div>
@@ -445,9 +423,7 @@ export default function NewRegistration() {
         {showConfirm && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-              <h4 className="text-lg font-bold text-gray-800 mb-4">
-                登録内容の確認
-              </h4>
+              <h4 className="text-lg font-bold text-gray-800 mb-4">登録内容の確認</h4>
               <dl className="text-sm space-y-2">
                 <div className="flex justify-between border-b pb-2">
                   <dt className="text-gray-500">氏名</dt>
@@ -461,8 +437,7 @@ export default function NewRegistration() {
                   <dt className="text-gray-500">生年月日</dt>
                   <dd>
                     {form.dateOfBirthEra}
-                    {form.dateOfBirthYear}年{form.dateOfBirthMonth}月
-                    {form.dateOfBirthDay}日
+                    {form.dateOfBirthYear}年{form.dateOfBirthMonth}月{form.dateOfBirthDay}日
                   </dd>
                 </div>
                 <div className="flex justify-between border-b pb-2">
@@ -489,9 +464,7 @@ export default function NewRegistration() {
               </dl>
 
               {/* actionから返ったエラー表示 */}
-              {actionData?.error && (
-                <p className="mt-3 text-sm text-red-600">{actionData.error}</p>
-              )}
+              {actionData?.error && <p className="mt-3 text-sm text-red-600">{actionData.error}</p>}
 
               <div className="flex gap-3 mt-6">
                 <button

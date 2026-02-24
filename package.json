@@ -8,10 +8,17 @@
     "dev:api": "pnpm --filter api dev",
     "build": "pnpm --filter user-front build",
     "typecheck": "pnpm -r typecheck",
+    "lint": "biome check src/",
+    "lint:fix": "biome check --write src/",
+    "format": "biome format --write src/",
+    "ci": "pnpm lint && pnpm typecheck",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "packageManager": "pnpm@10.30.1"
+  "packageManager": "pnpm@10.30.1",
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.4"
+  }
 }

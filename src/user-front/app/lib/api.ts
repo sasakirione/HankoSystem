@@ -29,15 +29,11 @@ export const apiClient = {
     if (query.id) params.set("id", query.id);
     if (query.name) params.set("name", query.name);
     if (query.address) params.set("address", query.address);
-    return fetch(`${API_BASE}/registrations?${params}`).then(
-      handleResponse<SealRegistration[]>
-    );
+    return fetch(`${API_BASE}/registrations?${params}`).then(handleResponse<SealRegistration[]>);
   },
 
   getById: (id: string): Promise<SealRegistration> =>
-    fetch(`${API_BASE}/registrations/${id}`).then(
-      handleResponse<SealRegistration>
-    ),
+    fetch(`${API_BASE}/registrations/${id}`).then(handleResponse<SealRegistration>),
 
   create: (
     fields: {
@@ -55,7 +51,7 @@ export const apiClient = {
     sealImage?: File
   ): Promise<SealRegistration> => {
     const formData = new FormData();
-    Object.entries(fields).forEach(([k, v]) => formData.set(k, v));
+    for (const [k, v] of Object.entries(fields)) formData.set(k, v);
     if (sealImage) formData.set("sealImage", sealImage);
     return fetch(`${API_BASE}/registrations`, {
       method: "POST",
@@ -63,10 +59,7 @@ export const apiClient = {
     }).then(handleResponse<SealRegistration>);
   },
 
-  updateStatus: (
-    id: string,
-    status: SealRegistrationStatus
-  ): Promise<SealRegistration> =>
+  updateStatus: (id: string, status: SealRegistrationStatus): Promise<SealRegistration> =>
     fetch(`${API_BASE}/registrations/${id}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },

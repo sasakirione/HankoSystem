@@ -54,16 +54,43 @@ export function SealPreview({ familyName, size = 80, imageUrl }: SealPreviewProp
       ) : chars.length === 2 ? (
         // 2文字は縦並び
         <>
-          <text x="50" y="38" textAnchor="middle" dominantBaseline="middle" fontSize="24" fontFamily="'Noto Serif JP', serif" fill="#c0392b" fontWeight="bold">
+          <text
+            x="50"
+            y="38"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize="24"
+            fontFamily="'Noto Serif JP', serif"
+            fill="#c0392b"
+            fontWeight="bold"
+          >
             {chars[0]}
           </text>
-          <text x="50" y="64" textAnchor="middle" dominantBaseline="middle" fontSize="24" fontFamily="'Noto Serif JP', serif" fill="#c0392b" fontWeight="bold">
+          <text
+            x="50"
+            y="64"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize="24"
+            fontFamily="'Noto Serif JP', serif"
+            fill="#c0392b"
+            fontWeight="bold"
+          >
             {chars[1]}
           </text>
         </>
       ) : (
         // 1文字
-        <text x="50" y="52" textAnchor="middle" dominantBaseline="middle" fontSize="32" fontFamily="'Noto Serif JP', serif" fill="#c0392b" fontWeight="bold">
+        <text
+          x="50"
+          y="52"
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontSize="32"
+          fontFamily="'Noto Serif JP', serif"
+          fill="#c0392b"
+          fontWeight="bold"
+        >
           {chars[0]}
         </text>
       )}

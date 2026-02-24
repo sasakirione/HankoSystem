@@ -75,13 +75,16 @@ export const searchRegistrations = (query: {
 }): SealRegistration[] => {
   return registrations.filter((r) => {
     if (query.id && !r.id.includes(query.id)) return false;
-    if (query.name && !r.name.includes(query.name) && !r.nameKana.includes(query.name)) return false;
+    if (query.name && !r.name.includes(query.name) && !r.nameKana.includes(query.name))
+      return false;
     if (query.address && !r.address.includes(query.address)) return false;
     return true;
   });
 };
 
-export const addRegistration = (input: Omit<SealRegistration, "id" | "registrationDate" | "status">): SealRegistration => {
+export const addRegistration = (
+  input: Omit<SealRegistration, "id" | "registrationDate" | "status">
+): SealRegistration => {
   const newId = String(20250000 + registrations.length + 1);
   const newReg: SealRegistration = {
     ...input,
@@ -93,9 +96,10 @@ export const addRegistration = (input: Omit<SealRegistration, "id" | "registrati
   return newReg;
 };
 
-export const updateStatus = (id: string, status: SealRegistration["status"]): SealRegistration | undefined => {
-  registrations = registrations.map((r) =>
-    r.id === id ? { ...r, status } : r
-  );
+export const updateStatus = (
+  id: string,
+  status: SealRegistration["status"]
+): SealRegistration | undefined => {
+  registrations = registrations.map((r) => (r.id === id ? { ...r, status } : r));
   return registrations.find((r) => r.id === id);
 };

@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Link, Form, useLoaderData, useNavigation, redirect } from "react-router";
-import type { Route } from "./+types/$id";
-import { apiClient } from "../../lib/api";
-import { StatusBadge } from "../../components/StatusBadge";
+import { Form, Link, useLoaderData, useNavigation } from "react-router";
 import { SealPreview } from "../../components/SealPreview";
+import { StatusBadge } from "../../components/StatusBadge";
+import { apiClient } from "../../lib/api";
+import type { Route } from "./+types/$id";
 
 export function meta({ params }: Route.MetaArgs) {
   return [{ title: `登録詳細 ${params.id} - 印鑑登録証明システム` }];
@@ -78,14 +78,8 @@ export default function RegistrationDetail() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* 印影カード */}
           <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center justify-center gap-3">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-              印影
-            </h3>
-            <SealPreview
-              familyName={reg.sealName}
-              size={120}
-              imageUrl={reg.sealImageBase64}
-            />
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">印影</h3>
+            <SealPreview familyName={reg.sealName} size={120} imageUrl={reg.sealImageBase64} />
             <p className="text-xs text-gray-400 mt-1">登録番号: {reg.id}</p>
           </div>
 
@@ -110,17 +104,13 @@ export default function RegistrationDetail() {
               </div>
               <div>
                 <dt className="text-gray-500">登録年月日</dt>
-                <dd className="font-medium text-gray-900 mt-0.5">
-                  {reg.registrationDate}
-                </dd>
+                <dd className="font-medium text-gray-900 mt-0.5">{reg.registrationDate}</dd>
               </div>
               <div className="col-span-2">
                 <dt className="text-gray-500">住所</dt>
                 <dd className="font-medium text-gray-900 mt-0.5">
                   〒{reg.postalCode} {reg.address}
-                  {reg.addressDetail && (
-                    <span className="text-gray-600"> {reg.addressDetail}</span>
-                  )}
+                  {reg.addressDetail && <span className="text-gray-600"> {reg.addressDetail}</span>}
                 </dd>
               </div>
               <div>
@@ -129,9 +119,7 @@ export default function RegistrationDetail() {
               </div>
               <div>
                 <dt className="text-gray-500">世帯番号</dt>
-                <dd className="font-mono text-gray-900 mt-0.5">
-                  {reg.householdNumber}
-                </dd>
+                <dd className="font-mono text-gray-900 mt-0.5">{reg.householdNumber}</dd>
               </div>
             </dl>
           </div>
@@ -171,9 +159,7 @@ export default function RegistrationDetail() {
         {showCancelConfirm && isActive && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
-              <h4 className="text-lg font-bold text-gray-800 mb-2">
-                印鑑登録廃止の確認
-              </h4>
+              <h4 className="text-lg font-bold text-gray-800 mb-2">印鑑登録廃止の確認</h4>
               <p className="text-sm text-gray-600 mb-6">
                 {reg.name}
                 の印鑑登録を抹消します。この操作は取り消せません。よろしいですか？
@@ -205,52 +191,36 @@ export default function RegistrationDetail() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-xl p-8 max-w-lg w-full mx-4">
               <div className="text-center mb-6">
-                <h4 className="text-xl font-bold text-gray-800 mb-1">
-                  印鑑登録証明書
-                </h4>
+                <h4 className="text-xl font-bold text-gray-800 mb-1">印鑑登録証明書</h4>
                 <p className="text-xs text-gray-400">（印刷プレビュー）</p>
               </div>
               <div className="border-2 border-gray-800 p-6 font-serif">
                 <div className="text-center mb-4">
-                  <h5 className="text-lg font-bold">
-                    印　鑑　登　録　証　明　書
-                  </h5>
+                  <h5 className="text-lg font-bold">印　鑑　登　録　証　明　書</h5>
                 </div>
                 <table className="w-full text-sm border-collapse">
                   <tbody>
                     <tr className="border border-gray-600">
-                      <th className="border border-gray-600 px-3 py-2 bg-gray-100 w-1/3">
-                        氏　名
-                      </th>
+                      <th className="border border-gray-600 px-3 py-2 bg-gray-100 w-1/3">氏　名</th>
                       <td className="border border-gray-600 px-3 py-2">{reg.name}</td>
                     </tr>
                     <tr className="border border-gray-600">
-                      <th className="border border-gray-600 px-3 py-2 bg-gray-100">
-                        生年月日
-                      </th>
-                      <td className="border border-gray-600 px-3 py-2">
-                        {reg.dateOfBirth}
-                      </td>
+                      <th className="border border-gray-600 px-3 py-2 bg-gray-100">生年月日</th>
+                      <td className="border border-gray-600 px-3 py-2">{reg.dateOfBirth}</td>
                     </tr>
                     <tr className="border border-gray-600">
-                      <th className="border border-gray-600 px-3 py-2 bg-gray-100">
-                        住　所
-                      </th>
+                      <th className="border border-gray-600 px-3 py-2 bg-gray-100">住　所</th>
                       <td className="border border-gray-600 px-3 py-2">
                         {reg.address}
                         {reg.addressDetail && ` ${reg.addressDetail}`}
                       </td>
                     </tr>
                     <tr className="border border-gray-600">
-                      <th className="border border-gray-600 px-3 py-2 bg-gray-100">
-                        登録番号
-                      </th>
+                      <th className="border border-gray-600 px-3 py-2 bg-gray-100">登録番号</th>
                       <td className="border border-gray-600 px-3 py-2">{reg.id}</td>
                     </tr>
                     <tr className="border border-gray-600">
-                      <th className="border border-gray-600 px-3 py-2 bg-gray-100">
-                        印　影
-                      </th>
+                      <th className="border border-gray-600 px-3 py-2 bg-gray-100">印　影</th>
                       <td className="border border-gray-600 px-3 py-2">
                         <SealPreview
                           familyName={reg.sealName}

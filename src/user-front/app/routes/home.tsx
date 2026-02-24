@@ -1,10 +1,10 @@
-import { Link, useNavigate, Form, useLoaderData, useSearchParams } from "react-router";
-import type { Route } from "./+types/home";
-import { apiClient } from "../lib/api";
-import { StatusBadge } from "../components/StatusBadge";
+import { Form, Link, useLoaderData, useNavigate, useSearchParams } from "react-router";
 import { SealPreview } from "../components/SealPreview";
+import { StatusBadge } from "../components/StatusBadge";
+import { apiClient } from "../lib/api";
+import type { Route } from "./+types/home";
 
-export function meta({}: Route.MetaArgs) {
+export function meta(_args: Route.MetaArgs) {
   return [
     { title: "印鑑登録証明システム" },
     { name: "description", content: "印鑑登録証明業務システム" },
@@ -53,16 +53,10 @@ export default function Home() {
             method="get" でフォームの値がURLクエリパラメータになり、loaderが再実行される。
             key でURL変更時に再マウントして defaultValue を更新する。
           */}
-          <Form
-            key={searchParams.toString()}
-            method="get"
-            className="space-y-4"
-          >
+          <Form key={searchParams.toString()} method="get" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  登録番号
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">登録番号</label>
                 <input
                   type="text"
                   name="id"
@@ -84,9 +78,7 @@ export default function Home() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  住所
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">住所</label>
                 <input
                   type="text"
                   name="address"

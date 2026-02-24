@@ -1,5 +1,5 @@
-import type { SealRegistration } from "./types";
 import type { CreateRegistrationInput } from "./schemas";
+import type { SealRegistration } from "./types";
 
 let registrations: SealRegistration[] = [
   {
@@ -75,30 +75,18 @@ const generateId = (): string => {
 export const db = {
   getAll: (): SealRegistration[] => [...registrations],
 
-  getById: (id: string): SealRegistration | undefined =>
-    registrations.find((r) => r.id === id),
+  getById: (id: string): SealRegistration | undefined => registrations.find((r) => r.id === id),
 
-  search: (query: {
-    id?: string;
-    name?: string;
-    address?: string;
-  }): SealRegistration[] =>
+  search: (query: { id?: string; name?: string; address?: string }): SealRegistration[] =>
     registrations.filter((r) => {
       if (query.id && !r.id.includes(query.id)) return false;
-      if (
-        query.name &&
-        !r.name.includes(query.name) &&
-        !r.nameKana.includes(query.name)
-      )
+      if (query.name && !r.name.includes(query.name) && !r.nameKana.includes(query.name))
         return false;
       if (query.address && !r.address.includes(query.address)) return false;
       return true;
     }),
 
-  create: (
-    input: CreateRegistrationInput,
-    sealImageBase64?: string
-  ): SealRegistration => {
+  create: (input: CreateRegistrationInput, sealImageBase64?: string): SealRegistration => {
     const newReg: SealRegistration = {
       ...input,
       addressDetail: input.addressDetail ?? "",
@@ -112,13 +100,8 @@ export const db = {
     return newReg;
   },
 
-  updateStatus: (
-    id: string,
-    status: SealRegistration["status"]
-  ): SealRegistration | undefined => {
-    registrations = registrations.map((r) =>
-      r.id === id ? { ...r, status } : r
-    );
+  updateStatus: (id: string, status: SealRegistration["status"]): SealRegistration | undefined => {
+    registrations = registrations.map((r) => (r.id === id ? { ...r, status } : r));
     return registrations.find((r) => r.id === id);
   },
 };

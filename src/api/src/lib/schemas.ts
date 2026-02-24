@@ -1,11 +1,6 @@
 import { z } from "zod";
 
-export const SealRegistrationStatusSchema = z.enum([
-  "照会中",
-  "照会取消",
-  "登録",
-  "抹消",
-]);
+export const SealRegistrationStatusSchema = z.enum(["照会中", "照会取消", "登録", "抹消"]);
 
 export const GenderSchema = z.enum(["男", "女"]);
 
