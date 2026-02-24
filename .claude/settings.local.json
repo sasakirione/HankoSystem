@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \":*)",
+      "Bash(cd /Users/sasakirione/repository/hanko/src/user-front && pnpm typecheck 2>&1)",
+      "Bash(pnpm build:*)",
+      "Bash(cd:*)"
+    ]
+  }
+}
