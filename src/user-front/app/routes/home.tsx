@@ -1,8 +1,6 @@
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, Form, useLoaderData, useSearchParams } from "react-router";
 import type { Route } from "./+types/home";
 import { apiClient } from "../lib/api";
-import type { SealRegistration } from "../lib/types";
 import { StatusBadge } from "../components/StatusBadge";
 import { SealPreview } from "../components/SealPreview";
 
@@ -13,60 +11,24 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
+export async function loader({ request }: Route.LoaderArgs) {
+  const url = new URL(request.url);
+  const id = url.searchParams.get("id") ?? undefined;
+  const name = url.searchParams.get("name") ?? undefined;
+  const address = url.searchParams.get("address") ?? undefined;
+
+  const hasFilter = Boolean(id || name || address);
+  const registrations = hasFilter
+    ? await apiClient.search({ id, name, address })
+    : await apiClient.getAll();
+
+  return { registrations, searched: hasFilter, query: { id, name, address } };
+}
+
 export default function Home() {
   const navigate = useNavigate();
-  const [nameQuery, setNameQuery] = useState("");
-  const [addressQuery, setAddressQuery] = useState("");
-  const [idQuery, setIdQuery] = useState("");
-  const [results, setResults] = useState<SealRegistration[]>([]);
-  const [searched, setSearched] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    apiClient
-      .getAll()
-      .then(setResults)
-      .catch((e: unknown) =>
-        setError(e instanceof Error ? e.message : "取得に失敗しました")
-      )
-      .finally(() => setLoading(false));
-  }, []);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    apiClient
-      .search({
-        name: nameQuery || undefined,
-        address: addressQuery || undefined,
-        id: idQuery || undefined,
-      })
-      .then((data) => {
-        setResults(data);
-        setSearched(true);
-      })
-      .catch((e: unknown) =>
-        setError(e instanceof Error ? e.message : "検索に失敗しました")
-      )
-      .finally(() => setLoading(false));
-  };
-
-  const handleClear = () => {
-    setNameQuery("");
-    setAddressQuery("");
-    setIdQuery("");
-    setSearched(false);
-    setLoading(true);
-    apiClient
-      .getAll()
-      .then(setResults)
-      .catch((e: unknown) =>
-        setError(e instanceof Error ? e.message : "取得に失敗しました")
-      )
-      .finally(() => setLoading(false));
-  };
+  const { registrations, searched } = useLoaderData<typeof loader>();
+  const [searchParams] = useSearchParams();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -87,7 +49,15 @@ export default function Home() {
         {/* 検索フォーム */}
         <section className="bg-white rounded-lg shadow p-6 mb-8">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">登録者検索</h2>
-          <form onSubmit={handleSearch} className="space-y-4">
+          {/*
+            method="get" でフォームの値がURLクエリパラメータになり、loaderが再実行される。
+            key でURL変更時に再マウントして defaultValue を更新する。
+          */}
+          <Form
+            key={searchParams.toString()}
+            method="get"
+            className="space-y-4"
+          >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -95,8 +65,8 @@ export default function Home() {
                 </label>
                 <input
                   type="text"
-                  value={idQuery}
-                  onChange={(e) => setIdQuery(e.target.value)}
+                  name="id"
+                  defaultValue={searchParams.get("id") ?? ""}
                   placeholder="例: 20240001"
                   className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
                 />
@@ -107,8 +77,8 @@ export default function Home() {
                 </label>
                 <input
                   type="text"
-                  value={nameQuery}
-                  onChange={(e) => setNameQuery(e.target.value)}
+                  name="name"
+                  defaultValue={searchParams.get("name") ?? ""}
                   placeholder="例: 山田 / ヤマダ"
                   className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
                 />
@@ -119,8 +89,8 @@ export default function Home() {
                 </label>
                 <input
                   type="text"
-                  value={addressQuery}
-                  onChange={(e) => setAddressQuery(e.target.value)}
+                  name="address"
+                  defaultValue={searchParams.get("address") ?? ""}
                   placeholder="例: 千代田区"
                   className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
                 />
@@ -133,23 +103,15 @@ export default function Home() {
               >
                 検索
               </button>
-              <button
-                type="button"
-                onClick={handleClear}
+              <Link
+                to="/"
                 className="bg-gray-200 text-gray-700 px-6 py-2 rounded text-sm font-medium hover:bg-gray-300 transition"
               >
                 クリア
-              </button>
+              </Link>
             </div>
-          </form>
+          </Form>
         </section>
-
-        {/* エラー表示 */}
-        {error && (
-          <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded mb-4 text-sm">
-            {error}
-          </div>
-        )}
 
         {/* 検索結果 */}
         <section className="bg-white rounded-lg shadow">
@@ -157,14 +119,10 @@ export default function Home() {
             <h2 className="text-lg font-semibold text-gray-800">
               {searched ? "検索結果" : "登録者一覧"}
             </h2>
-            <span className="text-sm text-gray-500">
-              {loading ? "読込中..." : `${results.length} 件`}
-            </span>
+            <span className="text-sm text-gray-500">{registrations.length} 件</span>
           </div>
 
-          {loading ? (
-            <div className="px-6 py-12 text-center text-gray-400">読込中...</div>
-          ) : results.length === 0 ? (
+          {registrations.length === 0 ? (
             <div className="px-6 py-12 text-center text-gray-400">
               該当する登録者が見つかりませんでした
             </div>
@@ -183,7 +141,7 @@ export default function Home() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {results.map((reg) => (
+                  {registrations.map((reg) => (
                     <tr key={reg.id} className="hover:bg-gray-50 transition">
                       <td className="px-4 py-3">
                         <SealPreview

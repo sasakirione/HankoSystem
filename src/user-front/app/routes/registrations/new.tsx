@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useActionData, useNavigation, useSubmit, redirect } from "react-router";
 import type { Route } from "./+types/new";
 import { apiClient } from "../../lib/api";
 import { SealPreview } from "../../components/SealPreview";
@@ -7,6 +7,46 @@ import type { Gender } from "../../lib/types";
 
 export function meta({}: Route.MetaArgs) {
   return [{ title: "新規印鑑登録 - 印鑑登録証明システム" }];
+}
+
+export async function action({ request }: Route.ActionArgs) {
+  const formData = await request.formData();
+
+  const name = (formData.get("name") as string)?.trim() ?? "";
+  const nameKana = (formData.get("nameKana") as string)?.trim() ?? "";
+  const era = (formData.get("dateOfBirthEra") as string) ?? "昭和";
+  const year = (formData.get("dateOfBirthYear") as string) ?? "";
+  const month = (formData.get("dateOfBirthMonth") as string) ?? "";
+  const day = (formData.get("dateOfBirthDay") as string) ?? "";
+  const dateOfBirth = `${era}${year}年${month}月${day}日`;
+  const sealName = name.split(/[\s　]/)[0] ?? name;
+
+  const sealImageFile = formData.get("sealImage");
+
+  try {
+    const newReg = await apiClient.create(
+      {
+        name,
+        nameKana,
+        dateOfBirth,
+        gender: (formData.get("gender") as Gender) ?? "男",
+        postalCode: (formData.get("postalCode") as string) ?? "",
+        address: (formData.get("address") as string)?.trim() ?? "",
+        addressDetail: (formData.get("addressDetail") as string)?.trim() ?? "",
+        mailingNumber: (formData.get("mailingNumber") as string)?.trim() ?? "",
+        householdNumber: (formData.get("householdNumber") as string)?.trim() ?? "",
+        sealName,
+      },
+      sealImageFile instanceof File && sealImageFile.size > 0
+        ? sealImageFile
+        : undefined
+    );
+    return redirect(`/registrations/${newReg.id}`);
+  } catch (e) {
+    return {
+      error: e instanceof Error ? e.message : "登録に失敗しました",
+    };
+  }
 }
 
 type FormState = {
@@ -42,18 +82,21 @@ const INITIAL_FORM: FormState = {
 const ERA_OPTIONS = ["明治", "大正", "昭和", "平成", "令和"] as const;
 
 export default function NewRegistration() {
-  const navigate = useNavigate();
+  const actionData = useActionData<typeof action>();
+  const navigation = useNavigation();
+  const submit = useSubmit();
+
+  const formRef = useRef<HTMLFormElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [showConfirm, setShowConfirm] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // 印影画像アップロード関連
-  const [sealImageFile, setSealImageFile] = useState<File | null>(null);
+  // 印影画像プレビュー（クライアントサイドのみ、actionには formRef 経由で送信）
   const [sealImagePreviewUrl, setSealImagePreviewUrl] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const isSubmitting = navigation.state !== "idle";
   const familyName = form.name.split(/[\s　]/)[0] ?? form.name;
 
   const handleChange =
@@ -68,13 +111,11 @@ export default function NewRegistration() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setSealImageFile(file);
     const url = URL.createObjectURL(file);
     setSealImagePreviewUrl(url);
   };
 
   const handleImageRemove = () => {
-    setSealImageFile(null);
     setSealImagePreviewUrl(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -103,32 +144,10 @@ export default function NewRegistration() {
   };
 
   const handleConfirmRegister = () => {
-    const dateOfBirth = `${form.dateOfBirthEra}${form.dateOfBirthYear}年${form.dateOfBirthMonth}月${form.dateOfBirthDay}日`;
-    setSubmitting(true);
-    setSubmitError(null);
-    apiClient
-      .create(
-        {
-          name: form.name.trim(),
-          nameKana: form.nameKana.trim(),
-          dateOfBirth,
-          gender: form.gender,
-          postalCode: form.postalCode,
-          address: form.address.trim(),
-          addressDetail: form.addressDetail.trim(),
-          mailingNumber: form.mailingNumber.trim(),
-          householdNumber: form.householdNumber.trim(),
-          sealName: familyName,
-        },
-        sealImageFile ?? undefined
-      )
-      .then((newReg) => {
-        navigate(`/registrations/${newReg.id}`);
-      })
-      .catch((e: unknown) => {
-        setSubmitError(e instanceof Error ? e.message : "登録に失敗しました");
-        setSubmitting(false);
-      });
+    if (formRef.current) {
+      // フォーム要素全体を送信（ファイル入力も含む）、actionが処理する
+      submit(formRef.current, { method: "post", encType: "multipart/form-data" });
+    }
   };
 
   return (
@@ -158,8 +177,8 @@ export default function NewRegistration() {
               {sealImagePreviewUrl
                 ? "アップロード画像"
                 : familyName
-                ? `「${familyName}」印`
-                : "氏名を入力すると表示されます"}
+                  ? `「${familyName}」印`
+                  : "氏名を入力すると表示されます"}
             </p>
 
             {/* 画像アップロードエリア */}
@@ -170,11 +189,12 @@ export default function NewRegistration() {
               <input
                 ref={fileInputRef}
                 type="file"
+                name="sealImage"
                 accept="image/jpeg,image/png,image/gif,image/webp"
                 onChange={handleImageChange}
                 className="block w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-red-50 file:text-red-700 hover:file:bg-red-100"
               />
-              {sealImageFile && (
+              {sealImagePreviewUrl && (
                 <button
                   type="button"
                   onClick={handleImageRemove}
@@ -191,7 +211,13 @@ export default function NewRegistration() {
 
           {/* フォーム */}
           <div className="md:col-span-2">
+            {/*
+              フォームのsubmitはonSubmitで横取りし確認ダイアログを表示する。
+              "登録する"ボタン押下時にuseSubmit(formRef.current)でactionへ送信。
+              name属性が各inputに付いていることが重要（FormData構築に使われる）。
+            */}
             <form
+              ref={formRef}
               onSubmit={handleSubmit}
               className="bg-white rounded-lg shadow p-6 space-y-5"
             >
@@ -202,6 +228,7 @@ export default function NewRegistration() {
                 </label>
                 <input
                   type="text"
+                  name="name"
                   value={form.name}
                   onChange={handleChange("name")}
                   placeholder="例: 山田 太郎"
@@ -219,6 +246,7 @@ export default function NewRegistration() {
                 </label>
                 <input
                   type="text"
+                  name="nameKana"
                   value={form.nameKana}
                   onChange={handleChange("nameKana")}
                   placeholder="例: ヤマダ タロウ"
@@ -236,6 +264,7 @@ export default function NewRegistration() {
                 </label>
                 <div className="flex gap-2 items-center flex-wrap">
                   <select
+                    name="dateOfBirthEra"
                     value={form.dateOfBirthEra}
                     onChange={handleChange("dateOfBirthEra")}
                     className="border border-gray-300 rounded px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -248,6 +277,7 @@ export default function NewRegistration() {
                   </select>
                   <input
                     type="number"
+                    name="dateOfBirthYear"
                     value={form.dateOfBirthYear}
                     onChange={handleChange("dateOfBirthYear")}
                     placeholder="年"
@@ -258,6 +288,7 @@ export default function NewRegistration() {
                   <span className="text-sm text-gray-600">年</span>
                   <input
                     type="number"
+                    name="dateOfBirthMonth"
                     value={form.dateOfBirthMonth}
                     onChange={handleChange("dateOfBirthMonth")}
                     placeholder="月"
@@ -268,6 +299,7 @@ export default function NewRegistration() {
                   <span className="text-sm text-gray-600">月</span>
                   <input
                     type="number"
+                    name="dateOfBirthDay"
                     value={form.dateOfBirthDay}
                     onChange={handleChange("dateOfBirthDay")}
                     placeholder="日"
@@ -311,6 +343,7 @@ export default function NewRegistration() {
                 </label>
                 <input
                   type="text"
+                  name="postalCode"
                   value={form.postalCode}
                   onChange={handleChange("postalCode")}
                   placeholder="例: 100-0001"
@@ -325,6 +358,7 @@ export default function NewRegistration() {
                 </label>
                 <input
                   type="text"
+                  name="address"
                   value={form.address}
                   onChange={handleChange("address")}
                   placeholder="例: 東京都千代田区霞が関一丁目1番1号"
@@ -342,6 +376,7 @@ export default function NewRegistration() {
                 </label>
                 <input
                   type="text"
+                  name="addressDetail"
                   value={form.addressDetail}
                   onChange={handleChange("addressDetail")}
                   placeholder="例: ○○マンション201号"
@@ -357,15 +392,14 @@ export default function NewRegistration() {
                   </label>
                   <input
                     type="text"
+                    name="mailingNumber"
                     value={form.mailingNumber}
                     onChange={handleChange("mailingNumber")}
                     placeholder="例: 1000099"
                     className={`w-full border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-500 ${errors.mailingNumber ? "border-red-500" : "border-gray-300"}`}
                   />
                   {errors.mailingNumber && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.mailingNumber}
-                    </p>
+                    <p className="text-red-500 text-xs mt-1">{errors.mailingNumber}</p>
                   )}
                 </div>
                 <div>
@@ -374,6 +408,7 @@ export default function NewRegistration() {
                   </label>
                   <input
                     type="text"
+                    name="householdNumber"
                     value={form.householdNumber}
                     onChange={handleChange("householdNumber")}
                     placeholder="例: 2000099"
@@ -453,21 +488,22 @@ export default function NewRegistration() {
                 </div>
               </dl>
 
-              {submitError && (
-                <p className="mt-3 text-sm text-red-600">{submitError}</p>
+              {/* actionから返ったエラー表示 */}
+              {actionData?.error && (
+                <p className="mt-3 text-sm text-red-600">{actionData.error}</p>
               )}
 
               <div className="flex gap-3 mt-6">
                 <button
                   onClick={handleConfirmRegister}
-                  disabled={submitting}
+                  disabled={isSubmitting}
                   className="flex-1 bg-red-800 text-white py-2.5 rounded font-medium text-sm hover:bg-red-700 transition disabled:opacity-50"
                 >
-                  {submitting ? "登録中..." : "登録する"}
+                  {isSubmitting ? "登録中..." : "登録する"}
                 </button>
                 <button
                   onClick={() => setShowConfirm(false)}
-                  disabled={submitting}
+                  disabled={isSubmitting}
                   className="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded font-medium text-sm hover:bg-gray-300 transition disabled:opacity-50"
                 >
                   修正する

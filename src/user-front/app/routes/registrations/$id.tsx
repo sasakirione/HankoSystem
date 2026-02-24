@@ -1,50 +1,52 @@
-import { useState, useEffect } from "react";
-import { Link, useParams } from "react-router";
+import { useState } from "react";
+import { Link, Form, useLoaderData, useNavigation, redirect } from "react-router";
 import type { Route } from "./+types/$id";
 import { apiClient } from "../../lib/api";
 import { StatusBadge } from "../../components/StatusBadge";
 import { SealPreview } from "../../components/SealPreview";
-import type { SealRegistration } from "../../lib/types";
 
 export function meta({ params }: Route.MetaArgs) {
   return [{ title: `登録詳細 ${params.id} - 印鑑登録証明システム` }];
 }
 
+export async function loader({ params }: Route.LoaderArgs) {
+  try {
+    const registration = await apiClient.getById(params.id!);
+    return { registration, error: null };
+  } catch (e) {
+    return {
+      registration: null,
+      error: e instanceof Error ? e.message : "取得に失敗しました",
+    };
+  }
+}
+
+export async function action({ params, request }: Route.ActionArgs) {
+  const formData = await request.formData();
+  const intent = formData.get("intent");
+
+  if (intent === "cancel") {
+    await apiClient.updateStatus(params.id!, "抹消");
+    // loaderが自動的にrevalidateされ、最新のregistrationデータを返す
+    return null;
+  }
+
+  return null;
+}
+
 export default function RegistrationDetail() {
-  const { id } = useParams<{ id: string }>();
-  const [reg, setReg] = useState<SealRegistration | undefined>(undefined);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { registration: reg, error } = useLoaderData<typeof loader>();
+  const navigation = useNavigation();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showCertModal, setShowCertModal] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
 
-  useEffect(() => {
-    if (!id) return;
-    apiClient
-      .getById(id)
-      .then(setReg)
-      .catch((e: unknown) =>
-        setError(e instanceof Error ? e.message : "取得に失敗しました")
-      )
-      .finally(() => setLoading(false));
-  }, [id]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-400">読込中...</p>
-      </div>
-    );
-  }
+  const isSubmitting = navigation.state !== "idle";
 
   if (error || !reg) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500 mb-4">
-            {error ?? `登録番号 ${id} の記録が見つかりません`}
-          </p>
+          <p className="text-gray-500 mb-4">{error ?? "記録が見つかりません"}</p>
           <Link to="/" className="text-red-700 hover:underline">
             ← 一覧に戻る
           </Link>
@@ -52,21 +54,6 @@ export default function RegistrationDetail() {
       </div>
     );
   }
-
-  const handleCancelRegistration = () => {
-    if (!id) return;
-    setActionLoading(true);
-    apiClient
-      .updateStatus(id, "抹消")
-      .then((updated) => {
-        setReg(updated);
-        setShowCancelConfirm(false);
-      })
-      .catch((e: unknown) =>
-        alert(e instanceof Error ? e.message : "操作に失敗しました")
-      )
-      .finally(() => setActionLoading(false));
-  };
 
   const isActive = reg.status === "登録";
 
@@ -115,9 +102,7 @@ export default function RegistrationDetail() {
               </div>
               <div>
                 <dt className="text-gray-500">生年月日</dt>
-                <dd className="font-medium text-gray-900 mt-0.5">
-                  {reg.dateOfBirth}
-                </dd>
+                <dd className="font-medium text-gray-900 mt-0.5">{reg.dateOfBirth}</dd>
               </div>
               <div>
                 <dt className="text-gray-500">性別</dt>
@@ -140,9 +125,7 @@ export default function RegistrationDetail() {
               </div>
               <div>
                 <dt className="text-gray-500">宛名番号</dt>
-                <dd className="font-mono text-gray-900 mt-0.5">
-                  {reg.mailingNumber}
-                </dd>
+                <dd className="font-mono text-gray-900 mt-0.5">{reg.mailingNumber}</dd>
               </div>
               <div>
                 <dt className="text-gray-500">世帯番号</dt>
@@ -180,33 +163,39 @@ export default function RegistrationDetail() {
           </Link>
         </div>
 
-        {/* 廃止確認ダイアログ */}
-        {showCancelConfirm && (
+        {/*
+          廃止確認ダイアログ。
+          isActiveがfalse（action後にloaderがrevalidateしてstatus="抹消"になった時点）
+          になると自動的に非表示になる。
+        */}
+        {showCancelConfirm && isActive && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
               <h4 className="text-lg font-bold text-gray-800 mb-2">
                 印鑑登録廃止の確認
               </h4>
               <p className="text-sm text-gray-600 mb-6">
-                {reg.name}{" "}
+                {reg.name}
                 の印鑑登録を抹消します。この操作は取り消せません。よろしいですか？
               </p>
-              <div className="flex gap-3">
+              <Form method="post" className="flex gap-3">
+                <input type="hidden" name="intent" value="cancel" />
                 <button
-                  onClick={handleCancelRegistration}
-                  disabled={actionLoading}
+                  type="submit"
+                  disabled={isSubmitting}
                   className="flex-1 bg-red-700 text-white py-2 rounded font-medium text-sm hover:bg-red-600 transition disabled:opacity-50"
                 >
-                  {actionLoading ? "処理中..." : "抹消する"}
+                  {isSubmitting ? "処理中..." : "抹消する"}
                 </button>
                 <button
+                  type="button"
                   onClick={() => setShowCancelConfirm(false)}
-                  disabled={actionLoading}
+                  disabled={isSubmitting}
                   className="flex-1 bg-gray-200 text-gray-700 py-2 rounded font-medium text-sm hover:bg-gray-300 transition disabled:opacity-50"
                 >
                   キャンセル
                 </button>
-              </div>
+              </Form>
             </div>
           </div>
         )}
@@ -233,9 +222,7 @@ export default function RegistrationDetail() {
                       <th className="border border-gray-600 px-3 py-2 bg-gray-100 w-1/3">
                         氏　名
                       </th>
-                      <td className="border border-gray-600 px-3 py-2">
-                        {reg.name}
-                      </td>
+                      <td className="border border-gray-600 px-3 py-2">{reg.name}</td>
                     </tr>
                     <tr className="border border-gray-600">
                       <th className="border border-gray-600 px-3 py-2 bg-gray-100">
@@ -258,9 +245,7 @@ export default function RegistrationDetail() {
                       <th className="border border-gray-600 px-3 py-2 bg-gray-100">
                         登録番号
                       </th>
-                      <td className="border border-gray-600 px-3 py-2">
-                        {reg.id}
-                      </td>
+                      <td className="border border-gray-600 px-3 py-2">{reg.id}</td>
                     </tr>
                     <tr className="border border-gray-600">
                       <th className="border border-gray-600 px-3 py-2 bg-gray-100">
