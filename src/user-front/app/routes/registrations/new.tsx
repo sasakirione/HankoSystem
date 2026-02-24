@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router";
 import type { Route } from "./+types/new";
-import { addRegistration } from "../../lib/mock";
+import { apiClient } from "../../lib/api";
 import { SealPreview } from "../../components/SealPreview";
 import type { Gender } from "../../lib/types";
 
@@ -46,28 +46,51 @@ export default function NewRegistration() {
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [showConfirm, setShowConfirm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // 印影画像アップロード関連
+  const [sealImageFile, setSealImageFile] = useState<File | null>(null);
+  const [sealImagePreviewUrl, setSealImagePreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const familyName = form.name.split(/[\s　]/)[0] ?? form.name;
 
-  const handleChange = (field: keyof FormState) => (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: undefined }));
-    }
+  const handleChange =
+    (field: keyof FormState) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      setForm((prev) => ({ ...prev, [field]: e.target.value }));
+      if (errors[field]) {
+        setErrors((prev) => ({ ...prev, [field]: undefined }));
+      }
+    };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSealImageFile(file);
+    const url = URL.createObjectURL(file);
+    setSealImagePreviewUrl(url);
+  };
+
+  const handleImageRemove = () => {
+    setSealImageFile(null);
+    setSealImagePreviewUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const validate = (): boolean => {
     const newErrors: Partial<Record<keyof FormState, string>> = {};
     if (!form.name.trim()) newErrors.name = "氏名は必須です";
     if (!form.nameKana.trim()) newErrors.nameKana = "フリガナは必須です";
-    if (!form.dateOfBirthYear) newErrors.dateOfBirthYear = "生年月日を入力してください";
+    if (!form.dateOfBirthYear)
+      newErrors.dateOfBirthYear = "生年月日を入力してください";
     if (!form.dateOfBirthMonth) newErrors.dateOfBirthMonth = "月を入力してください";
     if (!form.dateOfBirthDay) newErrors.dateOfBirthDay = "日を入力してください";
     if (!form.address.trim()) newErrors.address = "住所は必須です";
     if (!form.mailingNumber.trim()) newErrors.mailingNumber = "宛名番号は必須です";
-    if (!form.householdNumber.trim()) newErrors.householdNumber = "世帯番号は必須です";
+    if (!form.householdNumber.trim())
+      newErrors.householdNumber = "世帯番号は必須です";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -81,19 +104,31 @@ export default function NewRegistration() {
 
   const handleConfirmRegister = () => {
     const dateOfBirth = `${form.dateOfBirthEra}${form.dateOfBirthYear}年${form.dateOfBirthMonth}月${form.dateOfBirthDay}日`;
-    const newReg = addRegistration({
-      name: form.name.trim(),
-      nameKana: form.nameKana.trim(),
-      dateOfBirth,
-      gender: form.gender,
-      postalCode: form.postalCode,
-      address: form.address.trim(),
-      addressDetail: form.addressDetail.trim(),
-      mailingNumber: form.mailingNumber.trim(),
-      householdNumber: form.householdNumber.trim(),
-      sealName: familyName,
-    });
-    navigate(`/registrations/${newReg.id}`);
+    setSubmitting(true);
+    setSubmitError(null);
+    apiClient
+      .create(
+        {
+          name: form.name.trim(),
+          nameKana: form.nameKana.trim(),
+          dateOfBirth,
+          gender: form.gender,
+          postalCode: form.postalCode,
+          address: form.address.trim(),
+          addressDetail: form.addressDetail.trim(),
+          mailingNumber: form.mailingNumber.trim(),
+          householdNumber: form.householdNumber.trim(),
+          sealName: familyName,
+        },
+        sealImageFile ?? undefined
+      )
+      .then((newReg) => {
+        navigate(`/registrations/${newReg.id}`);
+      })
+      .catch((e: unknown) => {
+        setSubmitError(e instanceof Error ? e.message : "登録に失敗しました");
+        setSubmitting(false);
+      });
   };
 
   return (
@@ -101,7 +136,9 @@ export default function NewRegistration() {
       <header className="bg-red-800 text-white shadow">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <h1 className="text-xl font-bold tracking-wide">印鑑登録証明システム</h1>
-          <Link to="/" className="text-sm text-red-200 hover:text-white">← 一覧に戻る</Link>
+          <Link to="/" className="text-sm text-red-200 hover:text-white">
+            ← 一覧に戻る
+          </Link>
         </div>
       </header>
 
@@ -112,15 +149,52 @@ export default function NewRegistration() {
           {/* 印影プレビュー */}
           <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center justify-center gap-3">
             <h3 className="text-sm font-semibold text-gray-500">印影プレビュー</h3>
-            <SealPreview familyName={familyName || "印"} size={100} />
+            <SealPreview
+              familyName={familyName || "印"}
+              size={100}
+              imageUrl={sealImagePreviewUrl ?? undefined}
+            />
             <p className="text-xs text-gray-400 text-center">
-              {familyName ? `「${familyName}」印` : "氏名を入力すると表示されます"}
+              {sealImagePreviewUrl
+                ? "アップロード画像"
+                : familyName
+                ? `「${familyName}」印`
+                : "氏名を入力すると表示されます"}
             </p>
+
+            {/* 画像アップロードエリア */}
+            <div className="w-full mt-2">
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                印影画像（任意）
+              </label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                onChange={handleImageChange}
+                className="block w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-red-50 file:text-red-700 hover:file:bg-red-100"
+              />
+              {sealImageFile && (
+                <button
+                  type="button"
+                  onClick={handleImageRemove}
+                  className="mt-1 text-xs text-gray-400 hover:text-red-600 underline"
+                >
+                  画像を削除
+                </button>
+              )}
+              <p className="text-xs text-gray-400 mt-1">
+                JPEG / PNG / GIF / WebP、5MB以下
+              </p>
+            </div>
           </div>
 
           {/* フォーム */}
           <div className="md:col-span-2">
-            <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-5">
+            <form
+              onSubmit={handleSubmit}
+              className="bg-white rounded-lg shadow p-6 space-y-5"
+            >
               {/* 氏名 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -133,7 +207,9 @@ export default function NewRegistration() {
                   placeholder="例: 山田 太郎"
                   className={`w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 ${errors.name ? "border-red-500" : "border-gray-300"}`}
                 />
-                {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+                {errors.name && (
+                  <p className="text-red-500 text-xs mt-1">{errors.name}</p>
+                )}
               </div>
 
               {/* フリガナ */}
@@ -148,7 +224,9 @@ export default function NewRegistration() {
                   placeholder="例: ヤマダ タロウ"
                   className={`w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 ${errors.nameKana ? "border-red-500" : "border-gray-300"}`}
                 />
-                {errors.nameKana && <p className="text-red-500 text-xs mt-1">{errors.nameKana}</p>}
+                {errors.nameKana && (
+                  <p className="text-red-500 text-xs mt-1">{errors.nameKana}</p>
+                )}
               </div>
 
               {/* 生年月日 */}
@@ -163,7 +241,9 @@ export default function NewRegistration() {
                     className="border border-gray-300 rounded px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
                   >
                     {ERA_OPTIONS.map((era) => (
-                      <option key={era} value={era}>{era}</option>
+                      <option key={era} value={era}>
+                        {era}
+                      </option>
                     ))}
                   </select>
                   <input
@@ -201,10 +281,15 @@ export default function NewRegistration() {
 
               {/* 性別 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">性別</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  性別
+                </label>
                 <div className="flex gap-4">
                   {(["男", "女"] as Gender[]).map((g) => (
-                    <label key={g} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <label
+                      key={g}
+                      className="flex items-center gap-2 text-sm cursor-pointer"
+                    >
                       <input
                         type="radio"
                         name="gender"
@@ -221,7 +306,9 @@ export default function NewRegistration() {
 
               {/* 郵便番号 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">郵便番号</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  郵便番号
+                </label>
                 <input
                   type="text"
                   value={form.postalCode}
@@ -243,12 +330,16 @@ export default function NewRegistration() {
                   placeholder="例: 東京都千代田区霞が関一丁目1番1号"
                   className={`w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 ${errors.address ? "border-red-500" : "border-gray-300"}`}
                 />
-                {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
+                {errors.address && (
+                  <p className="text-red-500 text-xs mt-1">{errors.address}</p>
+                )}
               </div>
 
               {/* 方書 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">方書（建物名など）</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  方書（建物名など）
+                </label>
                 <input
                   type="text"
                   value={form.addressDetail}
@@ -271,7 +362,11 @@ export default function NewRegistration() {
                     placeholder="例: 1000099"
                     className={`w-full border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-500 ${errors.mailingNumber ? "border-red-500" : "border-gray-300"}`}
                   />
-                  {errors.mailingNumber && <p className="text-red-500 text-xs mt-1">{errors.mailingNumber}</p>}
+                  {errors.mailingNumber && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {errors.mailingNumber}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -284,7 +379,11 @@ export default function NewRegistration() {
                     placeholder="例: 2000099"
                     className={`w-full border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-500 ${errors.householdNumber ? "border-red-500" : "border-gray-300"}`}
                   />
-                  {errors.householdNumber && <p className="text-red-500 text-xs mt-1">{errors.householdNumber}</p>}
+                  {errors.householdNumber && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {errors.householdNumber}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -311,7 +410,9 @@ export default function NewRegistration() {
         {showConfirm && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-              <h4 className="text-lg font-bold text-gray-800 mb-4">登録内容の確認</h4>
+              <h4 className="text-lg font-bold text-gray-800 mb-4">
+                登録内容の確認
+              </h4>
               <dl className="text-sm space-y-2">
                 <div className="flex justify-between border-b pb-2">
                   <dt className="text-gray-500">氏名</dt>
@@ -323,7 +424,11 @@ export default function NewRegistration() {
                 </div>
                 <div className="flex justify-between border-b pb-2">
                   <dt className="text-gray-500">生年月日</dt>
-                  <dd>{form.dateOfBirthEra}{form.dateOfBirthYear}年{form.dateOfBirthMonth}月{form.dateOfBirthDay}日</dd>
+                  <dd>
+                    {form.dateOfBirthEra}
+                    {form.dateOfBirthYear}年{form.dateOfBirthMonth}月
+                    {form.dateOfBirthDay}日
+                  </dd>
                 </div>
                 <div className="flex justify-between border-b pb-2">
                   <dt className="text-gray-500">性別</dt>
@@ -331,25 +436,39 @@ export default function NewRegistration() {
                 </div>
                 <div className="flex justify-between border-b pb-2">
                   <dt className="text-gray-500">住所</dt>
-                  <dd className="text-right max-w-xs">{form.address}{form.addressDetail && ` ${form.addressDetail}`}</dd>
+                  <dd className="text-right max-w-xs">
+                    {form.address}
+                    {form.addressDetail && ` ${form.addressDetail}`}
+                  </dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-gray-500">印影（姓）</dt>
+                  <dt className="text-gray-500">印影</dt>
                   <dd>
-                    <SealPreview familyName={familyName} size={40} />
+                    <SealPreview
+                      familyName={familyName}
+                      size={40}
+                      imageUrl={sealImagePreviewUrl ?? undefined}
+                    />
                   </dd>
                 </div>
               </dl>
+
+              {submitError && (
+                <p className="mt-3 text-sm text-red-600">{submitError}</p>
+              )}
+
               <div className="flex gap-3 mt-6">
                 <button
                   onClick={handleConfirmRegister}
-                  className="flex-1 bg-red-800 text-white py-2.5 rounded font-medium text-sm hover:bg-red-700 transition"
+                  disabled={submitting}
+                  className="flex-1 bg-red-800 text-white py-2.5 rounded font-medium text-sm hover:bg-red-700 transition disabled:opacity-50"
                 >
-                  登録する
+                  {submitting ? "登録中..." : "登録する"}
                 </button>
                 <button
                   onClick={() => setShowConfirm(false)}
-                  className="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded font-medium text-sm hover:bg-gray-300 transition"
+                  disabled={submitting}
+                  className="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded font-medium text-sm hover:bg-gray-300 transition disabled:opacity-50"
                 >
                   修正する
                 </button>

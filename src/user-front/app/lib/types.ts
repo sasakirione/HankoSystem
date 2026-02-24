@@ -16,6 +16,7 @@ export interface SealRegistration {
   registrationDate: string; // 登録年月日 (ISO date)
   status: SealRegistrationStatus;
   sealName: string; // 印影に使用する氏名（姓）
+  sealImageBase64?: string; // アップロードされた印影画像（data URL形式）
 }
 
 export interface SealRegistrationFormInput {

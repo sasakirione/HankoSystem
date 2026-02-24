@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import type { Route } from "./+types/home";
-import { searchRegistrations, getAllRegistrations } from "../lib/mock";
+import { apiClient } from "../lib/api";
 import type { SealRegistration } from "../lib/types";
 import { StatusBadge } from "../components/StatusBadge";
 import { SealPreview } from "../components/SealPreview";
@@ -18,26 +18,54 @@ export default function Home() {
   const [nameQuery, setNameQuery] = useState("");
   const [addressQuery, setAddressQuery] = useState("");
   const [idQuery, setIdQuery] = useState("");
-  const [results, setResults] = useState<SealRegistration[]>(getAllRegistrations());
+  const [results, setResults] = useState<SealRegistration[]>([]);
   const [searched, setSearched] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiClient
+      .getAll()
+      .then(setResults)
+      .catch((e: unknown) =>
+        setError(e instanceof Error ? e.message : "取得に失敗しました")
+      )
+      .finally(() => setLoading(false));
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    const found = searchRegistrations({
-      name: nameQuery || undefined,
-      address: addressQuery || undefined,
-      id: idQuery || undefined,
-    });
-    setResults(found);
-    setSearched(true);
+    setLoading(true);
+    setError(null);
+    apiClient
+      .search({
+        name: nameQuery || undefined,
+        address: addressQuery || undefined,
+        id: idQuery || undefined,
+      })
+      .then((data) => {
+        setResults(data);
+        setSearched(true);
+      })
+      .catch((e: unknown) =>
+        setError(e instanceof Error ? e.message : "検索に失敗しました")
+      )
+      .finally(() => setLoading(false));
   };
 
   const handleClear = () => {
     setNameQuery("");
     setAddressQuery("");
     setIdQuery("");
-    setResults(getAllRegistrations());
     setSearched(false);
+    setLoading(true);
+    apiClient
+      .getAll()
+      .then(setResults)
+      .catch((e: unknown) =>
+        setError(e instanceof Error ? e.message : "取得に失敗しました")
+      )
+      .finally(() => setLoading(false));
   };
 
   return (
@@ -116,16 +144,27 @@ export default function Home() {
           </form>
         </section>
 
+        {/* エラー表示 */}
+        {error && (
+          <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded mb-4 text-sm">
+            {error}
+          </div>
+        )}
+
         {/* 検索結果 */}
         <section className="bg-white rounded-lg shadow">
           <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-800">
               {searched ? "検索結果" : "登録者一覧"}
             </h2>
-            <span className="text-sm text-gray-500">{results.length} 件</span>
+            <span className="text-sm text-gray-500">
+              {loading ? "読込中..." : `${results.length} 件`}
+            </span>
           </div>
 
-          {results.length === 0 ? (
+          {loading ? (
+            <div className="px-6 py-12 text-center text-gray-400">読込中...</div>
+          ) : results.length === 0 ? (
             <div className="px-6 py-12 text-center text-gray-400">
               該当する登録者が見つかりませんでした
             </div>
@@ -147,7 +186,11 @@ export default function Home() {
                   {results.map((reg) => (
                     <tr key={reg.id} className="hover:bg-gray-50 transition">
                       <td className="px-4 py-3">
-                        <SealPreview familyName={reg.sealName} size={40} />
+                        <SealPreview
+                          familyName={reg.sealName}
+                          size={40}
+                          imageUrl={reg.sealImageBase64}
+                        />
                       </td>
                       <td className="px-4 py-3 font-mono text-gray-600">{reg.id}</td>
                       <td className="px-4 py-3">
@@ -156,7 +199,9 @@ export default function Home() {
                       </td>
                       <td className="px-4 py-3 text-gray-600 max-w-xs truncate">
                         {reg.address}
-                        {reg.addressDetail && <span className="text-gray-400"> {reg.addressDetail}</span>}
+                        {reg.addressDetail && (
+                          <span className="text-gray-400"> {reg.addressDetail}</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-gray-600">{reg.registrationDate}</td>
                       <td className="px-4 py-3">

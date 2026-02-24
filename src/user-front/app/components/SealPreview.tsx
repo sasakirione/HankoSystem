@@ -1,9 +1,22 @@
 type SealPreviewProps = {
   familyName: string;
   size?: number;
+  imageUrl?: string; // アップロードされた印影画像（data URL）
 };
 
-export function SealPreview({ familyName, size = 80 }: SealPreviewProps) {
+export function SealPreview({ familyName, size = 80, imageUrl }: SealPreviewProps) {
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt={`${familyName}の印影`}
+        width={size}
+        height={size}
+        style={{ objectFit: "contain", width: size, height: size }}
+      />
+    );
+  }
+
   const displayName = familyName || "印";
   const chars = Array.from(displayName);
   const isLong = chars.length >= 3;

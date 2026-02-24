@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { Link, useParams, useNavigate } from "react-router";
+import { useState, useEffect } from "react";
+import { Link, useParams } from "react-router";
 import type { Route } from "./+types/$id";
-import { getRegistrationById, updateStatus } from "../../lib/mock";
+import { apiClient } from "../../lib/api";
 import { StatusBadge } from "../../components/StatusBadge";
 import { SealPreview } from "../../components/SealPreview";
 import type { SealRegistration } from "../../lib/types";
@@ -12,19 +12,42 @@ export function meta({ params }: Route.MetaArgs) {
 
 export default function RegistrationDetail() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const [reg, setReg] = useState<SealRegistration | undefined>(
-    id ? getRegistrationById(id) : undefined
-  );
+  const [reg, setReg] = useState<SealRegistration | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showCertModal, setShowCertModal] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  if (!reg) {
+  useEffect(() => {
+    if (!id) return;
+    apiClient
+      .getById(id)
+      .then(setReg)
+      .catch((e: unknown) =>
+        setError(e instanceof Error ? e.message : "取得に失敗しました")
+      )
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-400">読込中...</p>
+      </div>
+    );
+  }
+
+  if (error || !reg) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500 mb-4">登録番号 {id} の記録が見つかりません</p>
-          <Link to="/" className="text-red-700 hover:underline">← 一覧に戻る</Link>
+          <p className="text-gray-500 mb-4">
+            {error ?? `登録番号 ${id} の記録が見つかりません`}
+          </p>
+          <Link to="/" className="text-red-700 hover:underline">
+            ← 一覧に戻る
+          </Link>
         </div>
       </div>
     );
@@ -32,9 +55,17 @@ export default function RegistrationDetail() {
 
   const handleCancelRegistration = () => {
     if (!id) return;
-    const updated = updateStatus(id, "抹消");
-    if (updated) setReg(updated);
-    setShowCancelConfirm(false);
+    setActionLoading(true);
+    apiClient
+      .updateStatus(id, "抹消")
+      .then((updated) => {
+        setReg(updated);
+        setShowCancelConfirm(false);
+      })
+      .catch((e: unknown) =>
+        alert(e instanceof Error ? e.message : "操作に失敗しました")
+      )
+      .finally(() => setActionLoading(false));
   };
 
   const isActive = reg.status === "登録";
@@ -44,7 +75,9 @@ export default function RegistrationDetail() {
       <header className="bg-red-800 text-white shadow">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <h1 className="text-xl font-bold tracking-wide">印鑑登録証明システム</h1>
-          <Link to="/" className="text-sm text-red-200 hover:text-white">← 一覧に戻る</Link>
+          <Link to="/" className="text-sm text-red-200 hover:text-white">
+            ← 一覧に戻る
+          </Link>
         </div>
       </header>
 
@@ -58,14 +91,22 @@ export default function RegistrationDetail() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* 印影カード */}
           <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center justify-center gap-3">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">印影</h3>
-            <SealPreview familyName={reg.sealName} size={120} />
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+              印影
+            </h3>
+            <SealPreview
+              familyName={reg.sealName}
+              size={120}
+              imageUrl={reg.sealImageBase64}
+            />
             <p className="text-xs text-gray-400 mt-1">登録番号: {reg.id}</p>
           </div>
 
           {/* 基本情報 */}
           <div className="md:col-span-2 bg-white rounded-lg shadow p-6">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">登録者情報</h3>
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+              登録者情報
+            </h3>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
               <div>
                 <dt className="text-gray-500">氏名</dt>
@@ -74,7 +115,9 @@ export default function RegistrationDetail() {
               </div>
               <div>
                 <dt className="text-gray-500">生年月日</dt>
-                <dd className="font-medium text-gray-900 mt-0.5">{reg.dateOfBirth}</dd>
+                <dd className="font-medium text-gray-900 mt-0.5">
+                  {reg.dateOfBirth}
+                </dd>
               </div>
               <div>
                 <dt className="text-gray-500">性別</dt>
@@ -82,22 +125,30 @@ export default function RegistrationDetail() {
               </div>
               <div>
                 <dt className="text-gray-500">登録年月日</dt>
-                <dd className="font-medium text-gray-900 mt-0.5">{reg.registrationDate}</dd>
+                <dd className="font-medium text-gray-900 mt-0.5">
+                  {reg.registrationDate}
+                </dd>
               </div>
               <div className="col-span-2">
                 <dt className="text-gray-500">住所</dt>
                 <dd className="font-medium text-gray-900 mt-0.5">
                   〒{reg.postalCode} {reg.address}
-                  {reg.addressDetail && <span className="text-gray-600"> {reg.addressDetail}</span>}
+                  {reg.addressDetail && (
+                    <span className="text-gray-600"> {reg.addressDetail}</span>
+                  )}
                 </dd>
               </div>
               <div>
                 <dt className="text-gray-500">宛名番号</dt>
-                <dd className="font-mono text-gray-900 mt-0.5">{reg.mailingNumber}</dd>
+                <dd className="font-mono text-gray-900 mt-0.5">
+                  {reg.mailingNumber}
+                </dd>
               </div>
               <div>
                 <dt className="text-gray-500">世帯番号</dt>
-                <dd className="font-mono text-gray-900 mt-0.5">{reg.householdNumber}</dd>
+                <dd className="font-mono text-gray-900 mt-0.5">
+                  {reg.householdNumber}
+                </dd>
               </div>
             </dl>
           </div>
@@ -133,20 +184,25 @@ export default function RegistrationDetail() {
         {showCancelConfirm && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
-              <h4 className="text-lg font-bold text-gray-800 mb-2">印鑑登録廃止の確認</h4>
+              <h4 className="text-lg font-bold text-gray-800 mb-2">
+                印鑑登録廃止の確認
+              </h4>
               <p className="text-sm text-gray-600 mb-6">
-                {reg.name} の印鑑登録を抹消します。この操作は取り消せません。よろしいですか？
+                {reg.name}{" "}
+                の印鑑登録を抹消します。この操作は取り消せません。よろしいですか？
               </p>
               <div className="flex gap-3">
                 <button
                   onClick={handleCancelRegistration}
-                  className="flex-1 bg-red-700 text-white py-2 rounded font-medium text-sm hover:bg-red-600 transition"
+                  disabled={actionLoading}
+                  className="flex-1 bg-red-700 text-white py-2 rounded font-medium text-sm hover:bg-red-600 transition disabled:opacity-50"
                 >
-                  抹消する
+                  {actionLoading ? "処理中..." : "抹消する"}
                 </button>
                 <button
                   onClick={() => setShowCancelConfirm(false)}
-                  className="flex-1 bg-gray-200 text-gray-700 py-2 rounded font-medium text-sm hover:bg-gray-300 transition"
+                  disabled={actionLoading}
+                  className="flex-1 bg-gray-200 text-gray-700 py-2 rounded font-medium text-sm hover:bg-gray-300 transition disabled:opacity-50"
                 >
                   キャンセル
                 </button>
@@ -160,43 +216,76 @@ export default function RegistrationDetail() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-xl p-8 max-w-lg w-full mx-4">
               <div className="text-center mb-6">
-                <h4 className="text-xl font-bold text-gray-800 mb-1">印鑑登録証明書</h4>
+                <h4 className="text-xl font-bold text-gray-800 mb-1">
+                  印鑑登録証明書
+                </h4>
                 <p className="text-xs text-gray-400">（印刷プレビュー）</p>
               </div>
               <div className="border-2 border-gray-800 p-6 font-serif">
                 <div className="text-center mb-4">
-                  <h5 className="text-lg font-bold">印　鑑　登　録　証　明　書</h5>
+                  <h5 className="text-lg font-bold">
+                    印　鑑　登　録　証　明　書
+                  </h5>
                 </div>
                 <table className="w-full text-sm border-collapse">
                   <tbody>
                     <tr className="border border-gray-600">
-                      <th className="border border-gray-600 px-3 py-2 bg-gray-100 w-1/3">氏　名</th>
-                      <td className="border border-gray-600 px-3 py-2">{reg.name}</td>
-                    </tr>
-                    <tr className="border border-gray-600">
-                      <th className="border border-gray-600 px-3 py-2 bg-gray-100">生年月日</th>
-                      <td className="border border-gray-600 px-3 py-2">{reg.dateOfBirth}</td>
-                    </tr>
-                    <tr className="border border-gray-600">
-                      <th className="border border-gray-600 px-3 py-2 bg-gray-100">住　所</th>
+                      <th className="border border-gray-600 px-3 py-2 bg-gray-100 w-1/3">
+                        氏　名
+                      </th>
                       <td className="border border-gray-600 px-3 py-2">
-                        {reg.address}{reg.addressDetail && ` ${reg.addressDetail}`}
+                        {reg.name}
                       </td>
                     </tr>
                     <tr className="border border-gray-600">
-                      <th className="border border-gray-600 px-3 py-2 bg-gray-100">登録番号</th>
-                      <td className="border border-gray-600 px-3 py-2">{reg.id}</td>
+                      <th className="border border-gray-600 px-3 py-2 bg-gray-100">
+                        生年月日
+                      </th>
+                      <td className="border border-gray-600 px-3 py-2">
+                        {reg.dateOfBirth}
+                      </td>
                     </tr>
                     <tr className="border border-gray-600">
-                      <th className="border border-gray-600 px-3 py-2 bg-gray-100">印　影</th>
+                      <th className="border border-gray-600 px-3 py-2 bg-gray-100">
+                        住　所
+                      </th>
                       <td className="border border-gray-600 px-3 py-2">
-                        <SealPreview familyName={reg.sealName} size={60} />
+                        {reg.address}
+                        {reg.addressDetail && ` ${reg.addressDetail}`}
+                      </td>
+                    </tr>
+                    <tr className="border border-gray-600">
+                      <th className="border border-gray-600 px-3 py-2 bg-gray-100">
+                        登録番号
+                      </th>
+                      <td className="border border-gray-600 px-3 py-2">
+                        {reg.id}
+                      </td>
+                    </tr>
+                    <tr className="border border-gray-600">
+                      <th className="border border-gray-600 px-3 py-2 bg-gray-100">
+                        印　影
+                      </th>
+                      <td className="border border-gray-600 px-3 py-2">
+                        <SealPreview
+                          familyName={reg.sealName}
+                          size={60}
+                          imageUrl={reg.sealImageBase64}
+                        />
                       </td>
                     </tr>
                   </tbody>
                 </table>
                 <div className="mt-4 text-right text-xs text-gray-600">
-                  <p>発行日: {new Date().toLocaleDateString("ja-JP", { era: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+                  <p>
+                    発行日:{" "}
+                    {new Date().toLocaleDateString("ja-JP", {
+                      era: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </p>
                   <p>○○市長　印</p>
                 </div>
                 <p className="text-xs text-center text-gray-500 mt-3">
