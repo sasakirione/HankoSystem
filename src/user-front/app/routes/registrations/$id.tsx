@@ -3,6 +3,7 @@ import { Form, Link, useLoaderData, useNavigation } from "react-router";
 import { SealPreview } from "../../components/SealPreview";
 import { StatusBadge } from "../../components/StatusBadge";
 import { apiClient } from "../../lib/api";
+import { formatToWareki } from "../../lib/date";
 import type { Route } from "./+types/$id";
 
 export function meta({ params }: Route.MetaArgs) {
@@ -80,7 +81,9 @@ export default function RegistrationDetail() {
           <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center justify-center gap-3">
             <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">印影</h3>
             <SealPreview familyName={reg.sealName} size={120} imageUrl={reg.sealImageBase64} />
-            <p className="text-xs text-gray-400 mt-1">登録番号: {reg.id}</p>
+            <p className="text-xs text-gray-400 mt-1">
+              登録番号: {reg.registrationNumber ?? "未付番"}
+            </p>
           </div>
 
           {/* 基本情報 */}
@@ -104,7 +107,9 @@ export default function RegistrationDetail() {
               </div>
               <div>
                 <dt className="text-gray-500">登録年月日</dt>
-                <dd className="font-medium text-gray-900 mt-0.5">{reg.registrationDate}</dd>
+                <dd className="font-medium text-gray-900 mt-0.5">
+                  {formatToWareki(reg.registrationDate)}
+                </dd>
               </div>
               <div className="col-span-2">
                 <dt className="text-gray-500">住所</dt>
@@ -209,6 +214,10 @@ export default function RegistrationDetail() {
                       <td className="border border-gray-600 px-3 py-2">{reg.dateOfBirth}</td>
                     </tr>
                     <tr className="border border-gray-600">
+                      <th className="border border-gray-600 px-3 py-2 bg-gray-100">性　別</th>
+                      <td className="border border-gray-600 px-3 py-2">{reg.gender}</td>
+                    </tr>
+                    <tr className="border border-gray-600">
                       <th className="border border-gray-600 px-3 py-2 bg-gray-100">住　所</th>
                       <td className="border border-gray-600 px-3 py-2">
                         {reg.address}
@@ -217,7 +226,7 @@ export default function RegistrationDetail() {
                     </tr>
                     <tr className="border border-gray-600">
                       <th className="border border-gray-600 px-3 py-2 bg-gray-100">登録番号</th>
-                      <td className="border border-gray-600 px-3 py-2">{reg.id}</td>
+                      <td className="border border-gray-600 px-3 py-2">{reg.registrationNumber}</td>
                     </tr>
                     <tr className="border border-gray-600">
                       <th className="border border-gray-600 px-3 py-2 bg-gray-100">印　影</th>

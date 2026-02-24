@@ -3,7 +3,8 @@ import type { SealRegistration } from "./types";
 
 let registrations: SealRegistration[] = [
   {
-    id: "20240001",
+    id: "internal-001",
+    registrationNumber: "20240001",
     name: "山田 太郎",
     nameKana: "ヤマダ タロウ",
     dateOfBirth: "昭和40年3月15日",
@@ -16,9 +17,11 @@ let registrations: SealRegistration[] = [
     registrationDate: "2024-01-15",
     status: "登録",
     sealName: "山田",
+    sealNameCategory: "氏名",
   },
   {
-    id: "20240002",
+    id: "internal-002",
+    registrationNumber: "20240002",
     name: "鈴木 花子",
     nameKana: "スズキ ハナコ",
     dateOfBirth: "平成5年7月22日",
@@ -31,9 +34,11 @@ let registrations: SealRegistration[] = [
     registrationDate: "2024-02-03",
     status: "登録",
     sealName: "鈴木",
+    sealNameCategory: "氏名",
   },
   {
-    id: "20230005",
+    id: "internal-003",
+    registrationNumber: "20230005",
     name: "田中 次郎",
     nameKana: "タナカ ジロウ",
     dateOfBirth: "昭和55年11月30日",
@@ -46,9 +51,12 @@ let registrations: SealRegistration[] = [
     registrationDate: "2023-05-10",
     status: "抹消",
     sealName: "田中",
+    sealNameCategory: "氏名",
   },
   {
-    id: "20240003",
+    // 照会中: 登録番号・登録年月日は null（仕様書 1.1.3）
+    id: "internal-004",
+    registrationNumber: null,
     name: "佐藤 美咲",
     nameKana: "サトウ ミサキ",
     dateOfBirth: "令和元年5月1日",
@@ -58,18 +66,26 @@ let registrations: SealRegistration[] = [
     postalCode: "105-8011",
     mailingNumber: "1000004",
     householdNumber: "2000004",
-    registrationDate: "2024-03-20",
+    registrationDate: null,
     status: "照会中",
     sealName: "佐藤",
+    sealNameCategory: "氏名",
   },
 ];
 
-let idCounter = 20250000 + registrations.length + 1;
+let internalIdCounter = 5;
+let registrationNumberCounter = 20250001;
 
-const generateId = (): string => {
-  const id = String(idCounter);
-  idCounter++;
+const generateInternalId = (): string => {
+  const id = `internal-${String(internalIdCounter).padStart(3, "0")}`;
+  internalIdCounter++;
   return id;
+};
+
+const generateRegistrationNumber = (): string => {
+  const num = String(registrationNumberCounter);
+  registrationNumberCounter++;
+  return num;
 };
 
 export const db = {
@@ -79,7 +95,9 @@ export const db = {
 
   search: (query: { id?: string; name?: string; address?: string }): SealRegistration[] =>
     registrations.filter((r) => {
-      if (query.id && !r.id.includes(query.id)) return false;
+      // 登録番号または内部IDで検索
+      if (query.id && !r.id.includes(query.id) && !(r.registrationNumber ?? "").includes(query.id))
+        return false;
       if (query.name && !r.name.includes(query.name) && !r.nameKana.includes(query.name))
         return false;
       if (query.address && !r.address.includes(query.address)) return false;
@@ -87,13 +105,17 @@ export const db = {
     }),
 
   create: (input: CreateRegistrationInput, sealImageBase64?: string): SealRegistration => {
+    const isImmediate = (input.registrationMethod ?? "即時") === "即時";
     const newReg: SealRegistration = {
       ...input,
       addressDetail: input.addressDetail ?? "",
       postalCode: input.postalCode ?? "",
-      id: generateId(),
-      registrationDate: new Date().toISOString().split("T")[0],
-      status: "登録",
+      id: generateInternalId(),
+      // 即時登録: 登録番号・登録年月日を付番。照会書発行: どちらも null（仕様書 1.1.3）
+      registrationNumber: isImmediate ? generateRegistrationNumber() : null,
+      registrationDate: isImmediate ? new Date().toISOString().split("T")[0] : null,
+      status: isImmediate ? "登録" : "照会中",
+      sealNameCategory: input.sealNameCategory,
       ...(sealImageBase64 ? { sealImageBase64 } : {}),
     };
     registrations = [...registrations, newReg];

@@ -1,4 +1,9 @@
-import type { SealRegistration, SealRegistrationStatus } from "./types";
+import type {
+  RegistrationMethod,
+  SealNameCategory,
+  SealRegistration,
+  SealRegistrationStatus,
+} from "./types";
 
 const API_BASE = "http://localhost:8787/api";
 
@@ -47,6 +52,8 @@ export const apiClient = {
       mailingNumber: string;
       householdNumber: string;
       sealName: string;
+      sealNameCategory: SealNameCategory;
+      registrationMethod: RegistrationMethod;
     },
     sealImage?: File
   ): Promise<SealRegistration> => {

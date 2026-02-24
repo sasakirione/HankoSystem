@@ -4,6 +4,23 @@ export const SealRegistrationStatusSchema = z.enum(["照会中", "照会取消",
 
 export const GenderSchema = z.enum(["男", "女"]);
 
+export const SealNameCategorySchema = z.enum([
+  "氏名",
+  "氏のみ",
+  "名のみ",
+  "旧氏と名",
+  "旧氏",
+  "氏頭文字と名頭文字",
+  "氏頭文字と名",
+  "氏と名頭文字",
+  "旧氏頭文字と名頭文字",
+  "旧氏頭文字と名",
+  "旧氏と名頭文字",
+  "その他",
+]);
+
+export const RegistrationMethodSchema = z.enum(["即時", "照会"]);
+
 export const CreateRegistrationSchema = z.object({
   name: z.string().min(1, "氏名は必須です"),
   nameKana: z
@@ -28,6 +45,8 @@ export const CreateRegistrationSchema = z.object({
   mailingNumber: z.string().min(1, "宛名番号は必須です"),
   householdNumber: z.string().min(1, "世帯番号は必須です"),
   sealName: z.string().min(1, "印影名（姓）は必須です"),
+  sealNameCategory: SealNameCategorySchema,
+  registrationMethod: RegistrationMethodSchema.default("即時"),
 });
 
 export const UpdateStatusSchema = z.object({

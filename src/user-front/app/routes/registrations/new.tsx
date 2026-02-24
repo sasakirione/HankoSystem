@@ -2,7 +2,12 @@ import { useRef, useState } from "react";
 import { Link, redirect, useActionData, useNavigation, useSubmit } from "react-router";
 import { SealPreview } from "../../components/SealPreview";
 import { apiClient } from "../../lib/api";
-import type { Gender } from "../../lib/types";
+import {
+  type Gender,
+  type RegistrationMethod,
+  SEAL_NAME_CATEGORIES,
+  type SealNameCategory,
+} from "../../lib/types";
 import type { Route } from "./+types/new";
 
 export function meta(_args: Route.MetaArgs) {
@@ -22,6 +27,10 @@ export async function action({ request }: Route.ActionArgs) {
   const sealName = name.split(/[\s　]/)[0] ?? name;
 
   const sealImageFile = formData.get("sealImage");
+  const sealNameCategory = ((formData.get("sealNameCategory") as string) ??
+    "氏名") as SealNameCategory;
+  const registrationMethod = ((formData.get("registrationMethod") as string) ??
+    "即時") as RegistrationMethod;
 
   try {
     const newReg = await apiClient.create(
@@ -36,6 +45,8 @@ export async function action({ request }: Route.ActionArgs) {
         mailingNumber: (formData.get("mailingNumber") as string)?.trim() ?? "",
         householdNumber: (formData.get("householdNumber") as string)?.trim() ?? "",
         sealName,
+        sealNameCategory,
+        registrationMethod,
       },
       sealImageFile instanceof File && sealImageFile.size > 0 ? sealImageFile : undefined
     );
@@ -60,6 +71,8 @@ type FormState = {
   addressDetail: string;
   mailingNumber: string;
   householdNumber: string;
+  sealNameCategory: SealNameCategory;
+  registrationMethod: RegistrationMethod;
 };
 
 const INITIAL_FORM: FormState = {
@@ -75,6 +88,8 @@ const INITIAL_FORM: FormState = {
   addressDetail: "",
   mailingNumber: "",
   householdNumber: "",
+  sealNameCategory: "氏名",
+  registrationMethod: "即時",
 };
 
 const ERA_OPTIONS = ["明治", "大正", "昭和", "平成", "令和"] as const;
@@ -400,6 +415,57 @@ export default function NewRegistration() {
                 </div>
               </div>
 
+              {/* 印影の氏名区分 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  印影の氏名区分 <span className="text-red-600">*</span>
+                </label>
+                <select
+                  name="sealNameCategory"
+                  value={form.sealNameCategory}
+                  onChange={handleChange("sealNameCategory")}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  {SEAL_NAME_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+                {form.sealNameCategory === "その他" && (
+                  <p className="text-amber-600 text-xs mt-1">
+                    「その他」を選択した場合はメモに詳細を記載してください
+                  </p>
+                )}
+              </div>
+
+              {/* 登録方法 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  登録方法 <span className="text-red-600">*</span>
+                </label>
+                <div className="flex gap-6">
+                  {(["即時", "照会"] as RegistrationMethod[]).map((method) => (
+                    <label key={method} className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="radio"
+                        name="registrationMethod"
+                        value={method}
+                        checked={form.registrationMethod === method}
+                        onChange={handleChange("registrationMethod")}
+                        className="accent-red-700"
+                      />
+                      <span>{method === "即時" ? "即時登録" : "照会書発行（後日回答）"}</span>
+                    </label>
+                  ))}
+                </div>
+                {form.registrationMethod === "照会" && (
+                  <p className="text-amber-600 text-xs mt-1">
+                    照会書を住民票上の住所へ郵送します。回答後に正式登録となります
+                  </p>
+                )}
+              </div>
+
               {/* 送信ボタン */}
               <div className="flex gap-3 pt-2">
                 <button
@@ -450,6 +516,14 @@ export default function NewRegistration() {
                     {form.address}
                     {form.addressDetail && ` ${form.addressDetail}`}
                   </dd>
+                </div>
+                <div className="flex justify-between border-b pb-2">
+                  <dt className="text-gray-500">印影区分</dt>
+                  <dd>{form.sealNameCategory}</dd>
+                </div>
+                <div className="flex justify-between border-b pb-2">
+                  <dt className="text-gray-500">登録方法</dt>
+                  <dd>{form.registrationMethod === "即時" ? "即時登録" : "照会書発行"}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-gray-500">印影</dt>

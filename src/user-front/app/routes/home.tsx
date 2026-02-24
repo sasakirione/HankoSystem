@@ -2,6 +2,7 @@ import { Form, Link, useLoaderData, useNavigate, useSearchParams } from "react-r
 import { SealPreview } from "../components/SealPreview";
 import { StatusBadge } from "../components/StatusBadge";
 import { apiClient } from "../lib/api";
+import { formatToWareki } from "../lib/date";
 import type { Route } from "./+types/home";
 
 export function meta(_args: Route.MetaArgs) {
@@ -142,7 +143,9 @@ export default function Home() {
                           imageUrl={reg.sealImageBase64}
                         />
                       </td>
-                      <td className="px-4 py-3 font-mono text-gray-600">{reg.id}</td>
+                      <td className="px-4 py-3 font-mono text-gray-600">
+                        {reg.registrationNumber ?? "—"}
+                      </td>
                       <td className="px-4 py-3">
                         <div className="font-medium text-gray-900">{reg.name}</div>
                         <div className="text-xs text-gray-400">{reg.nameKana}</div>
@@ -153,7 +156,9 @@ export default function Home() {
                           <span className="text-gray-400"> {reg.addressDetail}</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-gray-600">{reg.registrationDate}</td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {formatToWareki(reg.registrationDate)}
+                      </td>
                       <td className="px-4 py-3">
                         <StatusBadge status={reg.status} />
                       </td>
